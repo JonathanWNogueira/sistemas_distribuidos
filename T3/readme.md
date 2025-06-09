@@ -1,7 +1,7 @@
 
 # Trabalho 3 — Middleware para Estabilização de Mensagens
 
-## 📌 Descrição Geral
+## Descrição Geral
 
 Este trabalho tem como finalidade criar um middleware, chamado `StableMulticast`, para comunicação multicast utilizando **sockets UDP**.  
 O middleware deve garantir **estabilização de mensagens** e descarte de mensagens do buffer de acordo com um algoritmo baseado em **vetores de relógios lógicos**.
