@@ -167,34 +167,45 @@ public class StableMulticast {
                 String content = new String(packet.getData(), 0, packet.getLength());
                 Message msg = Message.parseStringMessage(content);
     
-                if(msg.getPrefix().equals("msg")) {
-
-                    messages.add(msg);  // adicona a mensagem ao buffer
-
+                if (msg.getPrefix().equals("msg")) {
+                    messages.add(msg);  // adiciona a mensagem ao buffer
+                    
                     // when (existe msg no buffer)
                     Iterator<Message> iterator = messages.iterator();
                     while(iterator.hasNext()) {
                         Message m = iterator.next();
                         InetSocketAddress messageMember = new InetSocketAddress(m.getIP(), m.getPort());
                         Integer messageMemberIdx = memberId.get(messageMember);
+                        if(messageMemberIdx == null) continue;
+                        
                         boolean remove = false;
                         
                         // msg.VC[msg.sender] ≤ min1≤x≤n(MCi[x][msg.sender])
                         for(int i = 0; i < N; i++)
-                            if (m.getVectorClock().get(messageMember) <= clockMatrix[i][messageMemberIdx])
+                            if(m.getVectorClock().get(messageMember) <= clockMatrix[i][messageMemberIdx]) {
+                                System.out.println("VAI DISCARTAR AQUI!!");
                                 remove = true;
-    
-                        if(remove) iterator.remove();  // elimina a msg do buffer
+                                break;
+                            }
+                        if(remove) iterator.remove(); // elimina a msg do buffer
                     }
-                    
-                    if(!(msg.getIP().equals(ip) && msg.getPort() == port)) {
+                
+                    if (!(msg.getIP().equals(ip) && msg.getPort() == port)) {
                         Integer idx = memberId.get(new InetSocketAddress(msg.getIP(), msg.getPort()));
-                        Enumeration<InetSocketAddress> key = msg.getVectorClock().keys();
-
-                        // atualiza a matriz com o maior valor entre o local e recebido
-                        while(key.hasMoreElements())
-                            clockMatrix[idx][memberId.get(key.nextElement())] = Math.max(clockMatrix[idx][memberId.get(key.nextElement())], msg.getVectorClock().get(key.nextElement()));
-                        clockMatrix[0][idx] = Math.max(clockMatrix[0][idx], msg.getVectorClock().get(new InetSocketAddress(msg.getIP(), msg.getPort())));
+                        if (idx == null) {
+                            System.err.println("Unknown sender: " + msg.getIP() + ":" + msg.getPort());
+                            return;
+                        }
+                
+                        Enumeration<InetSocketAddress> keys = msg.getVectorClock().keys();
+                        while(keys.hasMoreElements()) {
+                            InetSocketAddress member = keys.nextElement();
+                            Integer memberIdx = memberId.get(member);
+                            
+                            if(memberIdx != null)
+                                clockMatrix[idx][memberIdx] = msg.getVectorClock().get(member); // atualiza visão do Pi com visão de Pj
+                        }
+                        clockMatrix[0][idx] += 1; // mais 1 msg de Pj entregue
                         printMatrix();
                     }
                 }
@@ -226,7 +237,7 @@ public class StableMulticast {
                     memberId.put(member, members.size() - 1);
                 }
                 
-                client.deliver(msg.getMessageText()); // envia a mensagem para o cliente
+                client.deliver(msg.getMessageText()); // entrega a mensagem
             }
         } catch (IOException e) {
             e.printStackTrace();
